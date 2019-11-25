@@ -25,10 +25,12 @@ public class WeightStore {
 
 	public void addInitialWeights(GameState state,int unitActionHash){
     	// weights are initialized randomly within [-1, 1]
+		featureWeights = new HashMap<>();
     	for (String featureName : featureExtractor.getFeatureNames(state))
-    		featureWeights.put(featureName, random.nextFloat()*2 - 1);
+    		featureWeights.put(featureName, random.nextFloat());
     	
     	unitActionWeights.put(unitActionHash, featureWeights);
+ //   	System.out.println("Adding" + unitActionHash);
      }
     
     public boolean checkUnitActionWeights(int unitActionHash){
@@ -38,12 +40,38 @@ public class WeightStore {
     public void setUnitActionWeights(int unitActionHash,Map<String,Float> featureWeights ){
     	unitActionWeights.put(unitActionHash, featureWeights);
     }
-    
+
+    public void loadWeightsUser(Map<Integer, Map<String, Float>> weightsUser ){    	
+    	unitActionWeights = weightsUser;
+    }
+
     public Map<String,Float> getUnitActionWeights(int unitActionHash){
     	return unitActionWeights.get(unitActionHash);
     }
     public Map<Integer, Map<String, Float>> getUnitActionWeightsAll(){
     	return unitActionWeights;
     }
-
+    public Map<String, Float> getUnitActionWeightl(Integer key){
+    	return unitActionWeights.get(key);
+    }
+    
+    public void printActionWeightsAll(){
+    	System.out.println("--------------------------------------------------------------------------------");
+    	for(Integer key : unitActionWeights.keySet()){
+    		System.out.println("Weights " + "Key " + key);
+    		for(String feat: unitActionWeights.get(key).keySet()){
+    			System.out.println("Feature " + feat + ", Value - " + unitActionWeights.get(key).get(feat));
+    		}
+    	}
+    	System.out.println("--------------------------------------------------------------------------------");
+    }
+    
+    public void printActionWeights(Integer key){
+    	System.out.println("--------------------------------------------------------------------------------");
+    	for(String feat: unitActionWeights.get(key).keySet()){
+    			System.out.println("Feature " + feat + ", Value - " + unitActionWeights.get(key).get(feat));
+    	}
+    	System.out.println("--------------------------------------------------------------------------------");
+    }
+    
 }

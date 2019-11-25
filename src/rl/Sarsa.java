@@ -1,5 +1,7 @@
 package rl;
 
+import java.io.BufferedWriter;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -49,13 +51,18 @@ public class Sarsa {
      * Eligibility trace
      */
     private double lambda;
+    private Integer prevChoice;
     private Integer nextChoice;
-    private Integer choiceNameHash;
-  //  private QuadrantModelFeatureExtractor features;
+
+	private boolean debugStatus;
+	private BufferedWriter debugFile;
+	private WeightStore weights;
+    private QuadrantModelFeatureExtractor features;
+
+
     
 	public Sarsa( Properties config) {
 		
-        
         epsilon = Double.parseDouble(config.getProperty("rl.epsilon.initial", "0.1"));
         epsilonDecayRate = Double.parseDouble(config.getProperty("rl.epsilon.decay", "1.0"));
         
@@ -67,6 +74,12 @@ public class Sarsa {
         lambda = Double.parseDouble(config.getProperty("rl.lambda", "0.0"));
         random = new Random();
         
+        
+	}
+	public void setFeatnWeight(WeightStore weights,QuadrantModelFeatureExtractor features){
+		this.features = features;
+		this.weights = weights;
+		
 	}
 	   /**
      * Returns the AI for the given state and player. 
@@ -74,13 +87,14 @@ public class Sarsa {
      * @param player
      * @return
      */
-    public Integer act(GameState state, int player,List<Integer> nextActions,WeightStore weights,QuadrantModelFeatureExtractor features){//change return type
+    public Integer act(GameState state, int player,List<Integer> nextActions){//change return type
     	//nextChoice is null on the first call to this function, afterwards, it is determined as a side-effect of 'learn'
-    	if(choiceNameHash == null){
-    		choiceNameHash = epsilonGreedy(state, player,nextActions,weights,features);
-    	}
     	
-        return choiceNameHash;
+    	if(nextChoice == null){
+    		nextChoice = epsilonGreedy(state, player,nextActions);
+    	}
+    //	System.out.println("act" + choiceNameHash);
+        return nextChoice;
     	
     }
  
@@ -91,26 +105,42 @@ public class Sarsa {
      * @param player
      * @return
      */
-    private Integer epsilonGreedy(GameState state, int player,List<Integer> nextActions,WeightStore weights,QuadrantModelFeatureExtractor features){//change return
+    private Integer epsilonGreedy(GameState state, int player,List<Integer> nextActions){//change return
         // epsilon-greedy:
-       if(random.nextFloat() < epsilon){ //random choice
-    	   choiceNameHash = nextActions.get(random.nextInt(nextActions.size()));
-        	if(choiceNameHash==null){System.err.println("ERROR!!!");}
+    	float rand = random.nextFloat();
+       if( rand < epsilon){ //random choice
+    	   
+    	   for(Integer actionHash: nextActions){
+    		   nextChoice = actionHash;
+    		   if (random.nextBoolean() == true)break; 
+    	   }
+        	if(nextChoice==null){System.err.println("ERROR!!!");}
+        	if(debugStatus)
+    			try {saveDebugInfo("Random");
+    			} catch (IOException e) {e.printStackTrace();}
+
         }
         else { //greedy choice
         	double maxQ = Double.NEGATIVE_INFINITY; //because MIN_VALUE is positive =/
         	
         	for(Integer actionHash: nextActions){
-        		double q = qValue(features.getRawFeatures(state, player), weights.getUnitActionWeights(actionHash));
+        		double q = qValue(features.getFeatures(state, player), weights.getUnitActionWeights(actionHash));
+            	if(debugStatus)
+        			try {saveDebugInfo(q,actionHash);
+        			} catch (IOException e) {e.printStackTrace();}
+
         		if (q > maxQ){
         			maxQ = q;
-        			choiceNameHash = actionHash;
+        			nextChoice =  actionHash;
         		}
         	}
-        	if(choiceNameHash==null){System.err.println("***ERROR!!!");}
+        	if(nextChoice==null){System.err.println("***ERROR!!!");}
+        	if(debugStatus)
+    			try {saveDebugInfo("Highest Q");
+    			} catch (IOException e) {e.printStackTrace();}
+
         }
-                
-        return choiceNameHash;
+        return nextChoice;
     }
     
     /**
@@ -123,22 +153,24 @@ public class Sarsa {
      * @param done whether this is the end of the episode
      * @param player required to extract the features of this state
      */
-    public void learn(GameState state, double reward, GameState nextState, boolean done, int player,
-    		List<Integer> nextActions,WeightStore weights,QuadrantModelFeatureExtractor features){
+    
+    public void learn(Integer prevChoice,GameState state, double reward, GameState nextState, boolean done, int player,
+    		List<Integer> nextActions){
         //GameState state, int player,List<Integer> nextActions,WeightStore weights
     	// ensures all variables are valid (they won't be in the initial state)
-    	if (state == null || nextState == null || nextChoice == null) {
+    	if (state == null || nextState == null) {
     		return; 
     	}
     	
     	// determines the next choice
-    	nextChoice = epsilonGreedy(nextState, player,nextActions,weights,features);
+    	
+    	nextChoice = epsilonGreedy(nextState, player,nextActions);
     	// applies the update rule with s, a, r, s', a'
         sarsaLearning(
-    		state, choiceNameHash, reward, 
-    		nextState, nextChoice, player,weights,features
+    		state, prevChoice, reward, 
+    		nextState, nextChoice, player
     	);
-        
+        //System.out.println("learn-" + choiceNameHash);
         
         if (done){
         	//decays alpha and epsilon
@@ -162,25 +194,27 @@ public class Sarsa {
      * @param player required to extract the features for the states
      */
     private void sarsaLearning(GameState state, Integer choice, double reward, 
-    		GameState nextState, Integer nextChoice, int player,WeightStore weights,QuadrantModelFeatureExtractor features){
+    		GameState nextState, Integer nextChoice, int player){
     	// checks if s' and a' are ok (s and a will always be ok, we hope)
     	if(nextState == null || nextChoice == null) return;
     	
-    	Map<String, Feature> stateFeatures = features.getRawFeatures(state, player);
-    	Map<String, Feature> nextStateFeatures = features.getRawFeatures(nextState, player);
+    	Map<String, Feature> stateFeatures = features.getFeatures(state, player);
+    	Map<String, Feature> nextStateFeatures = features.getFeatures(nextState, player);
     	//qValue(features.getRawFeatures(state, player), weights.getUnitActionWeights(actionHash));
 
     	double q = qValue(stateFeatures, weights.getUnitActionWeights(choice));
     	double futureQ = qValue(nextStateFeatures, weights.getUnitActionWeights(nextChoice));
-    	
+
     	//the temporal-difference error (delta in Sarsa equation)
     	double delta = reward + gamma * futureQ - q;
-    	
+    /*	if(debugStatus)
+			try {saveDebugInfo(delta,reward,futureQ,q,weights.getUnitActionWeightl(nextChoice));
+			} catch (IOException e) {e.printStackTrace();}
+    	*/
     	for(String featureName : stateFeatures.keySet()){
     		//retrieves the weight value, updates it and stores the updated value
     		float weightValue = weights.getUnitActionWeights(choice).get(featureName);
-    		weightValue += alpha * delta * stateFeatures.get(featureName).getValue();
-    		System.out.println(nextChoice + " " + featureName + " " + weightValue);
+    		weightValue += alpha * delta * stateFeatures.get(featureName).getValue();    		
     		weights.getUnitActionWeights(choice).put(featureName, weightValue);
     	}
     }
@@ -193,7 +227,13 @@ public class Sarsa {
      */
     private double qValue(Map<String,Feature> features, Map<String, Float> weights){
     	float product = 0.0f;
+    	
     	for(String featureName : features.keySet()){
+   /*     	if(debugStatus)
+    			try {saveDebugInfo(featureName,features.get(featureName).getValue(),weights.get(featureName));
+    			} catch (IOException e) {e.printStackTrace();}
+*/
+    	//	System.out.println("Feature name " + featureName + " value " + features.get(featureName).getValue() + " Weight " +weights.get(featureName));
     		product += features.get(featureName).getValue() * weights.get(featureName);
     	}
     	return product;
@@ -206,8 +246,7 @@ public class Sarsa {
      * @return
      */
     private double qValue(Map<String,Feature> features, Integer choice){
-//    	return dotProduct(features, weights.get(choice));
-    	return 0;
+    	return qValue(features, weights.getUnitActionWeightl(choice));
     }
     
     /**
@@ -221,6 +260,46 @@ public class Sarsa {
     	//return qValue(featureExtractor.getFeatures(state, player), choice);
     	return 0;
     }
-    
+    public double getAlpha(){
+    	return alpha;
+    }
+    public double getAlphaDecay(){
+    	return alphaDecayRate;
+    }
+    public double getEpsilon(){
+    	return epsilon;
+    }
+    public double getAEpsilonDecay(){
+    	return epsilonDecayRate;
+    }    
+    public void setDebugStatus(boolean status, BufferedWriter bufw){
+    	this.debugStatus = status;
+    	this.debugFile = bufw;
+    }
+    public void saveDebugInfo(double delta,double reward,double futureQ,double q, Map<String,Float> weights) throws IOException{
+    	
+    	debugFile.write("=========================================================================================================================================");debugFile.newLine();
+    	debugFile.write("Delta - " + delta + " Reward " + reward + " Gamma " + gamma + " Future Q " + futureQ + " Q " + q) ; debugFile.newLine();
+    	debugFile.write("=========================================================================================================================================");debugFile.newLine();
+    	debugFile.write("Weights gefore update for next action - " + nextChoice) ; debugFile.newLine();
+    	debugFile.write("=========================================================================================================================================");debugFile.newLine();
+    	for(String feat: weights.keySet()){
+			debugFile.write("Feature " + feat + ", Weight - " + weights.get(feat));
+			debugFile.newLine();
+		}        	
+    }
+    public void saveDebugInfo(String actionChoice) throws IOException{
+    	debugFile.write("=========================================================================================================================================");debugFile.newLine();
+    	debugFile.write("Picked " + actionChoice + " action" + nextChoice) ; debugFile.newLine();
+    }
+    public void saveDebugInfo( double q,int actionHash) throws IOException{
+    	debugFile.write("=========================================================================================================================================");debugFile.newLine();
+    	debugFile.write("Q-Value " + q + " Action " + actionHash) ; debugFile.newLine();
+    }
+    public void saveDebugInfo( String featureName,double featureValue, double weightValue) throws IOException{
+    	debugFile.write("------------------------------------------------------------------------------------------------------------------------------------------");debugFile.newLine();
+    	debugFile.write("Feature " + featureName + " Value " + featureValue 
+    			+ " Weight " + weightValue);  debugFile.newLine();  }
 
+	
 }

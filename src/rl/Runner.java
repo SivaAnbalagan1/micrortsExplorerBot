@@ -56,15 +56,15 @@ public class Runner {
         // Player 1 command line options
         options.addOption("s1", "seed1", true, "player 1 seed number");
         options.addOption("d1", "directory1", true, "player 1 working directory");
-        options.addOption("b1", "binprefix1", false, "player 1 save binary weights");
-        options.addOption("h1", "humanprefix1", false, "player 1 save human weights");
+        options.addOption("b1", "binprefix1", true, "player 1 save binary weights");
+        options.addOption("h1", "humanprefix1", true, "player 1 save human weights");
         options.addOption("bi1", "bininput1", true, "player 1 binary input");
 
         // Player 2 command line options
         options.addOption("s2", "seed2", true, "player 2 seed number");
         options.addOption("d2", "directory2", true, "player 2 working directory");
-        options.addOption("b2", "binprefix2", false, "player 2 save binary weights");
-        options.addOption("h2", "humanprefix2", false, "player 2 save human weights");
+        options.addOption("b2", "binprefix2", true, "player 2 save binary weights");
+        options.addOption("h2", "humanprefix2", true, "player 2 save human weights");
         options.addOption("bi2", "bininput2", true, "player 2 binary input");
 
         CommandLineParser parser = new DefaultParser();
@@ -286,7 +286,7 @@ public class Runner {
 
         // (custom) loads ExplorerBot with its configuration file
         if (aiName.equalsIgnoreCase("explorerBot.EBot")) {
-
+        	
             String configKey = String.format("player%d.config", playerNumber);
             if(config.containsKey(configKey)){
                 String configPath = config.getProperty(configKey);
@@ -294,7 +294,6 @@ public class Runner {
                 try {
                     // Load ExplorerBot config file
                 	explorerBotConfig = ConfigManager.loadConfig(configPath);
-
                     // Update config with command line arguments
                     String opt = String.format("s%d", playerNumber);
                     if (cmd.hasOption(opt)) {
@@ -312,8 +311,10 @@ public class Runner {
 
                     opt = String.format("b%d", playerNumber);
                     if (cmd.hasOption(opt)) {
-                        logger.info("Setting player {} 'save binary weights' to true", playerNumber, cmd.getOptionValue(opt));
+                    	String value = cmd.getOptionValue(opt);
+                        logger.info("Setting player {} 'save binary weights' to true and dir", playerNumber, value);
                         explorerBotConfig.setProperty("rl.save_weights_bin", "true");
+                        explorerBotConfig.setProperty("rl.output.binprefix", value);
                     }
 
                     opt = String.format("h%d", playerNumber);
