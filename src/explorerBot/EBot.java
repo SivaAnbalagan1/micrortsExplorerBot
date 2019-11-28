@@ -91,7 +91,7 @@ public class EBot extends AI{
 	Writer writer;
 	BufferedWriter bufW;   
 	final static long fileSize = 250000000;
-	int filePartNum;
+	int filePartNum,gameCount;
     
     public EBot(UnitTypeTable utt) {
         // calls the other constructor, specifying the default config file
@@ -101,7 +101,7 @@ public class EBot extends AI{
         System.gc();//Call garbage collector
         myUnitTypeTable = utt;
         config = EBotConfig;
-
+        gameCount = 1;
         logger = LogManager.getLogger(EBot.class);
         
         quadrantDivision = Integer.parseInt(config.getProperty("rl.feature.extractor.quadrant_division", "3"));
@@ -112,6 +112,7 @@ public class EBot extends AI{
          // creates the learning agent with the specified portfolio and loaded parameters
         learningAgent = new Sarsa(config);
         learningAgent.setFeatnWeight(exhaustiveActionStore, features);
+        
         if (config.containsKey("rl.load_weights_bin")) {
             try {
             	if(config.getProperty("rl.load_weights_bin").equalsIgnoreCase("True"))
@@ -287,7 +288,8 @@ public class EBot extends AI{
                     dir = dir + "/";
                 }
              //  saveBin(dir + "weightstore_" + myPlayerNumber + ".bin");
-               saveBin(dir + "weightstore" + ".bin");
+               saveBin(dir + "weightstore" + "-game-" + gameCount++ + ".bin");
+              
             }
         }
 
