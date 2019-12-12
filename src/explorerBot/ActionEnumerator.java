@@ -14,7 +14,8 @@ import java.util.stream.Collectors;
 import rts.GameState;
 import rts.UnitAction;
 import rts.units.Unit;
-import javafx.util.Pair;//serializable
+import util.Pair;
+//import javafx.util.Pair;//serializable
 
 public class ActionEnumerator {
 	ActionEnumerator(){
@@ -113,9 +114,9 @@ public class ActionEnumerator {
 		 * */
 		// adding all possible actions		
 		waitUnitActionList.forEach((unitActionPair)->{
-			unitActionPair.getKey().getUnitActions(gs,0).forEach((action)->{
+			unitActionPair.m_a.getUnitActions(gs,0).forEach((action)->{
 				 if(!action.getActionName().equals("wait")){
-					 if(gs.isUnitActionAllowed(unitActionPair.getKey(), action)){
+					 if(gs.isUnitActionAllowed(unitActionPair.m_a, action)){
 					  //copy the wait events for all unit
 					  tempnextUnitsActionNameList = Arrays.copyOf(waitnextUnitsActionNameList, waitnextUnitsActionNameList.length);
 					  tempUnitActionList.clear();
@@ -125,11 +126,11 @@ public class ActionEnumerator {
 					  //change the action for this unit from wait to the current one in loop
 				//	  tempUnitActionList.removeIf(u -> u.getKey.getID() == unitActionPair.getKey().getID());
 					  tempUnitActionList.removeIf(u -> u == unitActionPair);
-					  tempUnitActionList.add(new Pair<Unit, UnitAction>(unitActionPair.getKey(),action));
+					  tempUnitActionList.add(new Pair<Unit, UnitAction>(unitActionPair.m_a,action));
 					  
 					  				  
-					  tempnextUnitsActionNameList[unitActionPair.getKey().getX()*unitActionPair.getKey().getY()]
-							  = unitActionPair.getKey().toString()+action.toString();
+					  tempnextUnitsActionNameList[unitActionPair.m_a.getX()*unitActionPair.m_a.getY()]
+							  = unitActionPair.m_a.toString()+action.toString();
 					  
 					  //create hash key
 					  unitActionRef = Arrays.deepHashCode(Arrays.copyOf(tempnextUnitsActionNameList, 

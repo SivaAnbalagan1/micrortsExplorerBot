@@ -37,7 +37,8 @@ import rts.PlayerAction;
 import rts.UnitAction;
 import rts.units.Unit;
 import rts.units.UnitTypeTable;
-import javafx.util.Pair;
+import util.Pair;
+//import javafx.util.Pair;
 import utils.FileNameUtil;
 
 
@@ -254,7 +255,7 @@ public class EBot extends AI{
         		unitActions = nextPossibleActions.getNextUnitActions(nextAction).stream().collect(Collectors.toList());
         		PlayerAction pa = new PlayerAction();
         		for(Pair<Unit, UnitAction> acts:unitActions){
-        			pa.addUnitAction(acts.getKey(), acts.getValue());
+        			pa.addUnitAction(acts.m_a, acts.m_b);
         		}
         		return pa;
         		//
